@@ -1,16 +1,33 @@
 (ns ynab.main
-  (require [config.core :refer [env]]
-           [clojure.pprint :refer [pprint]]
-           [org.httpkit.client :as http]))
+  (require [cprop.core :refer [load-config]]
+           [clj-http.client :as http]
+           [cheshire.core :refer [parse-string]]))
+
+(def config (load-config))
 
 
-(def base-url (:base-url env))
-(def access-token (:access-token env))
-(pprint env)
+(def base-url (:base-url config))
+(def access-token (:access-token config))
 
 (defn do-request 
   ([] (println "empty request"))
   ([endpoint]
-   (http/get (apply str base-url "/" endpoint) {:headers {"Authorization" (str "Bearer: " access-token)}})))
+   (let [url (apply str base-url "/" endpoint)
+         options {:headers {"Authorization" (str "Bearer " access-token)}
+                  :accept :json}]
+     (http/get url options))))
 
-(do-request "budgets")
+(defn keywordize-body
+  [resp]
+  (parse-string (:body resp) true))
+
+
+(defn get-endpoint-response-body
+  [endpoint]
+  (->>
+    (do-request endpoint)
+    (keywordize-body)))
+
+(defn get-budgets
+  []
+  (get-endpoint-response-body "budgets"))
